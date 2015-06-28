@@ -120,6 +120,10 @@ bool CPickupAudio::OpenInput()
 					m_nError = Error_eInputFileAudioNotSupport;
 					return false;
 				}
+				if (m_pAudioCodec->sample_fmt == AV_SAMPLE_FMT_S16P)
+				{
+					m_pAudioCodec->request_sample_fmt = AV_SAMPLE_FMT_S16;
+				}
 				avcodec_open2(m_pAudioCodec, inAcodec, NULL);
 				break;
 			}
@@ -190,6 +194,7 @@ int CPickupAudio::Decode(const AVPacket *pkt, uint8_t **decBuffer)
 	{
 		if(!m_pSwrContext)
 		{
+			printf("swr init\n");
 			m_pSwrContext = swr_alloc_set_opts(NULL,
 								dec_channel_layout, out_sample_fmt, decFrame.sample_rate,
 								dec_channel_layout, (enum AVSampleFormat)decFrame.format, decFrame.sample_rate,
@@ -204,7 +209,7 @@ int CPickupAudio::Decode(const AVPacket *pkt, uint8_t **decBuffer)
 			uint8_t **out = &m_pSwDecBuffer;
 			unsigned int swDecBufferSize = 0;
 			int out_count = 0;
-			out_count = (int64_t)decFrame.nb_samples + 256;
+			out_count = (int64_t)decFrame.nb_samples;
 			int out_size  = av_samples_get_buffer_size(NULL, 
 				channels, out_count, 
 				out_sample_fmt, 0);
@@ -218,9 +223,6 @@ int CPickupAudio::Decode(const AVPacket *pkt, uint8_t **decBuffer)
 			if (len2 < 0) {
 				printf("swr_convert() failed\n");
 				return -1;
-			}
-			if (len2 == out_count) {
-				printf("warning: audio buffer is probably too small\n");
 			}
 			int resampled_data_size = len2 * channels
 				* av_get_bytes_per_sample(out_sample_fmt);
